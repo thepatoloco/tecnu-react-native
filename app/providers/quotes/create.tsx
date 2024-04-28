@@ -20,8 +20,7 @@ const columns = [
     { name: "Más", id: "more", flex: 1 },
 ]
 
-const SaleSchema = z.object({
-  sale_status_id: z.number().nonnegative(),
+const QuoteSchema = z.object({
   client_id: z.number().nonnegative(),
   products: z.array(z.object({
     product_id: z.number().nonnegative(),
@@ -30,7 +29,7 @@ const SaleSchema = z.object({
     quantity: z.number()
   })).min(1)
 });
-type SaleInfo = z.infer<typeof SaleSchema>;
+type QuoteInfo = z.infer<typeof QuoteSchema>;
 
 const ProductSchema = z.object({
     product_id: z.number().nonnegative(),
@@ -42,7 +41,7 @@ type ProductInfo = z.infer<typeof ProductSchema>;
 export default function CreateSale() {
   const toast = useToastController();
 
-  const [saleStasus, setSaleStatus] = useState<{ value: string, label: string }[]>([]);
+  const [quoteStatusId, setQuoteStatusId] = useState<number|null>(null);
   const [clients, setClients] = useState<{ value: string, label: string }[]>([]);
   const [products, setProducts] = useState<{ value: string, label: string }[]>([]);
 
@@ -50,10 +49,10 @@ export default function CreateSale() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
 
-  const saleForm = useForm<SaleInfo>({
-    resolver: zodResolver(SaleSchema)
+  const quoteForm = useForm<QuoteInfo>({
+    resolver: zodResolver(QuoteSchema)
   });
-  const saleFormWatch = useWatch(saleForm);
+  const quoteFormWatch = useWatch(quoteForm);
 
   const productForm = useForm<ProductInfo>({
     resolver: zodResolver(ProductSchema)
@@ -61,20 +60,20 @@ export default function CreateSale() {
   const productFormWatch = useWatch(productForm);
 
 
-  async function handleSubmit(input: SaleInfo) {
+  async function handleSubmit(input: QuoteInfo) {
     // Submit new product to api
     setIsSubmitting(true);
     const { data, error } = await supabase
       .from("sales")
-      .insert([{ sale_status_id: input.sale_status_id, client_id: input.client_id }])
+      .insert([{ sale_status_id: quoteStatusId, client_id: input.client_id }])
       .select();
     setIsSubmitting(false);
 
     console.log("Sale:", data);
 
     if (error) {
-      console.log("Sale error:", error);
-      toast.show("No se pudo crear la venta.", {
+      console.log("Quote error:", error);
+      toast.show("No se pudo crear la cotización.", {
         duration: 2000,
         toastType: "error",
       });
@@ -84,22 +83,22 @@ export default function CreateSale() {
     const saleId = data[0].id;
     for (const prod of input.products) {
         const { error } = await supabase
-            .from("product_sale")
-            .insert([{ price_pu: prod.price, amount: prod.quantity, product_id: prod.product_id, sale_id: saleId }])
-            .select();
+          .from("product_sale")
+          .insert([{ price_pu: prod.price, amount: prod.quantity, product_id: prod.product_id, sale_id: saleId }])
+          .select();
     }
 
-    toast.show("La venta se ha creado.", {
+    toast.show("La cotización se ha creado.", {
       duration: 2000,
       toastType: "success",
     });
-    saleForm.reset();
+    quoteForm.reset();
     router.push("../");
   }
 
   async function addProduct(input: ProductInfo) {
-    saleForm.setValue("products", [
-        ...(saleForm.getValues("products")??[]), 
+    quoteForm.setValue("products", [
+        ...(quoteForm.getValues("products")??[]), 
         {
             ...input,
             product: products.find((product) => Number(product.value) === input.product_id)?.label ?? "Sin nombre"
@@ -113,8 +112,8 @@ export default function CreateSale() {
   }
 
   async function removeProduct(id: Number) {
-    saleForm.setValue("products", [
-        ...(saleForm.getValues("products")??[]).filter((product, index) => index !== id),
+    quoteForm.setValue("products", [
+        ...(quoteForm.getValues("products")??[]).filter((product, index) => index !== id),
     ]);
   }
 
@@ -152,12 +151,12 @@ export default function CreateSale() {
   }
 
   useEffect(() => {
-    async function loadStatusData() {
+    async function loadQuoteId() {
         const { data: sale_statuses, error } = await supabase
             .from('sale_statuses')
             .select('*')
-            .neq("name", "Cotización");
-        setSaleStatus((sale_statuses??[]).map((status) => ({ value: status.id.toString(), label: status.name })));
+            .eq("name", "Cotización");
+        setQuoteStatusId((sale_statuses??[])[0].id??null);
     }
     async function loadClientsData() {
         const { data: clients, error } = await supabase
@@ -172,7 +171,7 @@ export default function CreateSale() {
         setProducts((products??[]).map((product) => ({ value: product.id.toString(), label: product.name })));
     }
 
-    loadStatusData();
+    loadQuoteId();
     loadClientsData();
     loadProductsData();
   }, []);
@@ -183,35 +182,20 @@ export default function CreateSale() {
       style={{ marginLeft: left, marginRight: right, marginBottom: bottom }}
     >
       <Form
-        onSubmit={saleForm.handleSubmit((data) => handleSubmit(data))}
+        onSubmit={quoteForm.handleSubmit((data) => handleSubmit(data))}
         className="flex w-full flex-col items-stretch gap-4 p-4"
       >
         <View className="bg-transparent">
             <RNPickerSelect
-                {...saleForm.register("sale_status_id")}
-                onValueChange={(value) => saleForm.setValue("sale_status_id", Number(value))}
-                items={saleStasus}
-                style={pickerSelectStyle}
-                placeholder={{ value: "-1", label: "Selecciona el estatus..." }}
-            />
-            {saleForm.formState.errors.sale_status_id?.message && (
-                <Text className="bg-transparent text-xs text-red-500">
-                    {saleForm.formState.errors.sale_status_id.message}
-                </Text>
-            )}
-        </View>
-
-        <View className="bg-transparent">
-            <RNPickerSelect
-                {...saleForm.register("client_id")}
-                onValueChange={(value) => saleForm.setValue("client_id", Number(value))}
+                {...quoteForm.register("client_id")}
+                onValueChange={(value) => quoteForm.setValue("client_id", Number(value))}
                 items={clients}
                 style={pickerSelectStyle}
                 placeholder={{ value: "-1", label: "Selecciona el cliente..." }}
             />
-            {saleForm.formState.errors.client_id?.message && (
+            {quoteForm.formState.errors.client_id?.message && (
                 <Text className="bg-transparent text-xs text-red-500">
-                    {saleForm.formState.errors.client_id.message}
+                    {quoteForm.formState.errors.client_id.message}
                 </Text>
             )}
         </View>
@@ -262,21 +246,21 @@ export default function CreateSale() {
 
         <TableSchema
             columns={columns}
-            rows={(saleFormWatch.products??[]).map((product, index) => ({ ...product, index }))}
+            rows={(quoteFormWatch.products??[]).map((product, index) => ({ ...product, index }))}
             isLoading={false}
             rowsPerPage={5}
             rowContent={rowContent}
         />
-        {saleForm.formState.errors.products?.message && (
+        {quoteForm.formState.errors.products?.message && (
             <Text className="bg-transparent text-xs text-red-500">
-                {saleForm.formState.errors.products.message}
+                {quoteForm.formState.errors.products.message}
             </Text>
         )}
 
         <View className="flex flex-row items-center justify-stretch gap-2 bg-transparent pt-4">
           <Button
             onPress={() => {
-              saleForm.reset();
+              quoteForm.reset();
               router.push("../");
             }}
             theme="red_active"
@@ -291,7 +275,7 @@ export default function CreateSale() {
               theme="blue_active"
               flexGrow={1}
             >
-              Crear Venta
+              Crear Cotización
             </Button>
           </Form.Trigger>
         </View>

@@ -10,18 +10,59 @@ import { MoreHorizontal, Plus } from "@tamagui/lucide-icons";
 import { Link, router, useFocusEffect } from "expo-router";
 import { MenuView } from "@react-native-menu/menu";
 import MoreOptions from "@/components/MoreOptions";
+import { useToastController } from "@tamagui/toast";
 // import { useToastController } from "@tamagui/toast";
 
 const columns = [
   { name: "Id", id: "id", flex: 1 },
-  { name: "Cliente", id: "client", flex: 3 },
+  { name: "Cliente", id: "clients", flex: 3 },
   { name: "Fecha", id: "created_at", flex: 3 },
   { name: "Más", id: "more", flex: 1 },
 ];
 
 export default function SalesPage() {
+  const toast = useToastController();
+
   const { left, right, bottom } = useSafeAreaInsets();
   const [sales, setSales] = useState<Sale[] | null>(null);
+
+
+  function removeSale(id: number) {
+    async function deleteClient() {
+      const { error } = await supabase.from("sales").delete().eq("id", id);
+
+      if (error) {
+        toast.show("No se pudo eliminar la venta.", {
+          duration: 2000,
+          toastType: "error",
+        });
+        return;
+      }
+
+      setSales((sales ?? []).filter((sales) => sales.id !== id));
+      toast.show("La venta ha sido eliminado.", {
+        duration: 2000,
+        toastType: "success",
+      });
+    }
+
+    Alert.alert(
+      "¿Estas seguro de borrar la venta?",
+      "Esta acción no se puede deshacer.",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Eliminar",
+          onPress: () => deleteClient(),
+          style: "destructive",
+        },
+      ],
+    );
+  }
+
 
   // Function Row Content
   function rowContent(
@@ -31,22 +72,22 @@ export default function SalesPage() {
     const content = row[key] as string;
 
     switch (key) {
-      case "client":
-        const client = row["client"] as Client;
+      case "clients":
+        const client = row["clients"] as Client;
         return client ? `${client.name} ${client.last_name}` : "";
       case "more":
         return (
           <MoreOptions
             actions={[
-              {
-                id: "open",
-                title: "Ver",
-                image: Platform.select({
-                  ios: "eye.fill",
-                  android: "baseline_visibility_20",
-                }),
-                method: () => console.log("open")
-              },
+              // {
+              //   id: "open",
+              //   title: "Ver",
+              //   image: Platform.select({
+              //     ios: "eye.fill",
+              //     android: "baseline_visibility_20",
+              //   }),
+              //   method: () => console.log("open")
+              // },
               {
                 id: "delete",
                 title: "Eliminar",
@@ -57,7 +98,7 @@ export default function SalesPage() {
                   ios: "trash",
                   android: "ic_menu_delete",
                 }),
-                method: () => console.log("delete")
+                method: () => removeSale(row["id"] as number)
               },
             ]}
           />
@@ -73,9 +114,10 @@ export default function SalesPage() {
       async function loadData() {
         let { data: sales, error } = await supabase
           .from("sales")
-          .select(`*, client(*)`);
+          .select(`*, clients(*), sale_statuses!inner(*)`)
+          .neq("sale_statuses.name", "Cotización");
         if (error || !sales) {
-          console.log("Error cargando datos.");
+          console.log("Error cargando datos.", error);
           setSales([]);
           return;
         }

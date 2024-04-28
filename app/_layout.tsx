@@ -98,7 +98,11 @@ function RootLayoutNav() {
             />
             <Stack.Screen
               name="providers/sales/create"
-              options={{ title: "Crear Producto", presentation: "modal" }}
+              options={{ title: "Crear Venta", presentation: "modal" }}
+            />
+            <Stack.Screen
+              name="providers/quotes/create"
+              options={{ title: "Crear Cotización", presentation: "modal" }}
             />
           </Stack>
 

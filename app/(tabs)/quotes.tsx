@@ -1,5 +1,5 @@
 import TableSchema from "@/components/TableSchema";
-import { Product, Sale } from "@/utils/dbTypes";
+import { Client, Product, Sale } from "@/utils/dbTypes";
 // import { supabase } from "@/utils/supabase";
 import React, { useCallback, useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, View } from "react-native";
@@ -9,18 +9,61 @@ import { Button } from "tamagui";
 import { MoreHorizontal, Plus } from "@tamagui/lucide-icons";
 import { Link, router, useFocusEffect } from "expo-router";
 import { MenuView } from "@react-native-menu/menu";
+import { supabase } from "@/utils/supabase";
+import { useToastController } from "@tamagui/toast";
+import MoreOptions from "@/components/MoreOptions";
 // import { useToastController } from "@tamagui/toast";
 
 const columns = [
   { name: "Id", id: "id", flex: 1 },
-  { name: "Cliente", id: "client", flex: 3 },
-  { name: "Fecha", id: "created_at", flex: 3 },
+  { name: "Cliente", id: "clients", flex: 3 },
+  { name: "Fecha", id: "completed_date", flex: 3 },
   { name: "Más", id: "more", flex: 1 },
 ];
 
 export default function QuotePage() {
+  const toast = useToastController();
+
   const { left, right, bottom } = useSafeAreaInsets();
   const [sales, setSales] = useState<Sale[] | null>(null);
+
+
+  function removeSale(id: number) {
+    async function deleteClient() {
+      const { error } = await supabase.from("sales").delete().eq("id", id);
+
+      if (error) {
+        toast.show("No se pudo eliminar la venta.", {
+          duration: 2000,
+          toastType: "error",
+        });
+        return;
+      }
+
+      setSales((sales ?? []).filter((sales) => sales.id !== id));
+      toast.show("La venta ha sido eliminado.", {
+        duration: 2000,
+        toastType: "success",
+      });
+    }
+
+    Alert.alert(
+      "¿Estas seguro de borrar la venta?",
+      "Esta acción no se puede deshacer.",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Eliminar",
+          onPress: () => deleteClient(),
+          style: "destructive",
+        },
+      ],
+    );
+  }
+
 
   // Function Row Content
   function rowContent(
@@ -30,29 +73,13 @@ export default function QuotePage() {
     const content = row[key] as string;
 
     switch (key) {
+      case "clients":
+        const client = row["clients"] as Client;
+        return client ? `${client.name} ${client.last_name}` : "";
       case "more":
         return (
-          <MenuView
-            // Select the correct function depending on the function activating
-            onPressAction={({ nativeEvent }) => {
-              switch (nativeEvent.event) {
-                case "open":
-                  // openClient(row["id"] as number);
-                  break;
-                case "delete":
-                  // removeClient(row["id"] as number);
-                  break;
-              }
-            }}
+          <MoreOptions
             actions={[
-              {
-                id: "open",
-                title: "Ver",
-                image: Platform.select({
-                  ios: "eye.fill",
-                  android: "baseline_visibility_20",
-                }),
-              },
               {
                 id: "delete",
                 title: "Eliminar",
@@ -63,15 +90,10 @@ export default function QuotePage() {
                   ios: "trash",
                   android: "ic_menu_delete",
                 }),
+                method: () => removeSale(row["id"] as number)
               },
             ]}
-          >
-            <Pressable>
-              {({ pressed }) => (
-                <MoreHorizontal style={{ opacity: pressed ? 0.5 : 1 }} />
-              )}
-            </Pressable>
-          </MenuView>
+          />
         );
       default:
         return content;
@@ -82,25 +104,19 @@ export default function QuotePage() {
   useFocusEffect(
     useCallback(() => {
       async function loadData() {
-        // let { data: clients, error } = await supabase
-        //   .from("clients")
-        //   .select("*");
-        // if (error || !clients) {
-        //   console.log("Error cargando datos.");
-        //   setClients([]);
-        //   return;
-        // }
-        setSales(
-          [
-            {
-              id: 1,
-              client: "Carlos Viera",
-              created_at: "13/04/2024",
-              updated_at: "13/04/2024",
-            },
-          ].sort((a, b) => a.id - b.id),
-        );
+        const { data: sales, error } = await supabase
+          .from("sales")
+          .select(`*, clients(*), sale_statuses!inner(*)`)
+          .eq("sale_statuses.name", "Cotización");
+        if (error || !sales) {
+          console.log("Error cargando datos.", error);
+          setSales([]);
+          return;
+        }
+        console.log("Sales:", sales)
+        setSales(sales);
       }
+
       loadData();
     }, []),
   );
@@ -111,7 +127,7 @@ export default function QuotePage() {
       style={{ marginLeft: left, marginRight: right, paddingBottom: bottom }}
     >
       <View className="flex flex-row justify-end p-4 pb-0">
-        <Link href="/providers/clients/create" asChild>
+        <Link href="/providers/quotes/create" asChild>
           <Button
             icon={<Plus />}
             size={"$3"}

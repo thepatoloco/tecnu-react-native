@@ -43,8 +43,18 @@ export type Sale = {
   sale_status_id: number;
   client_id: number;
 
-  client?: Client;
+  clients?: Client;
+  sale_statuses?: SaleStatus;
 
   created_at: string;
   updated_at: string;
 };
+
+export type SaleStatus = {
+  id: number;
+  name: string;
+
+
+  created_at: string;
+  updated_at: string;
+}
