@@ -20,9 +20,34 @@ export type Location = {
   updated_at: string;
 };
 
+export type OrderProduct = {
+  id: number;
+  amount: number;
+  order_id: number;
+  product_id: number;
+
+  orders?: Order;
+  products?: Product;
+
+  created_at: string;
+  updated_at: string;
+}
+
+export type OrderStatus = {
+  id: number;
+  name: string;
+
+  created_at: string;
+  updated_at: string;
+}
+
 export type Order = {
   id: number;
-  product: string;
+  completed_date: string;
+  order_status_id: number;
+
+  order_statuses?: OrderStatus;
+  order_product?: OrderProduct[];
 
   created_at: string;
   updated_at: string;
@@ -37,6 +62,14 @@ export type Product = {
   updated_at: string;
 };
 
+export type SaleStatus = {
+  id: number;
+  name: string;
+
+  created_at: string;
+  updated_at: string;
+}
+
 export type Sale = {
   id: number;
   completed_date: string;
@@ -49,12 +82,3 @@ export type Sale = {
   created_at: string;
   updated_at: string;
 };
-
-export type SaleStatus = {
-  id: number;
-  name: string;
-
-
-  created_at: string;
-  updated_at: string;
-}

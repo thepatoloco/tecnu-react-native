@@ -104,6 +104,10 @@ function RootLayoutNav() {
               name="providers/quotes/create"
               options={{ title: "Crear Cotización", presentation: "modal" }}
             />
+            <Stack.Screen
+              name="providers/orders/create"
+              options={{ title: "Crear Órden", presentation: "modal" }}
+            />
           </Stack>
 
           <CurrentToast />
